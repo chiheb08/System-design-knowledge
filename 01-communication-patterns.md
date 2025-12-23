@@ -9,7 +9,13 @@
 2. [Polling](#2-polling)
 3. [Bidirectional WebSocket](#3-bidirectional-websocket)
 4. [Throttling](#4-throttling)
-5. [Quick Comparison](#quick-comparison-table)
+5. [Request-Response (HTTP / RPC)](#5-request-response-http--rpc)
+6. [Publish-Subscribe (Pub/Sub)](#6-publish-subscribe-pubsub)
+7. [Message Queue (Work Queue)](#7-message-queue-work-queue)
+8. [Webhooks](#8-webhooks)
+9. [Server-Sent Events (SSE)](#9-server-sent-events-sse)
+10. [Event Streaming (Log-Based)](#10-event-streaming-log-based)
+11. [Quick Comparison](#quick-comparison-table)
 
 ---
 
@@ -323,13 +329,220 @@ Content-Type: application/json
 
 ---
 
+## 5. Request-Response (HTTP / RPC)
+
+### What is it?
+The client sends a **request**, the server processes it, then returns a **response**. This is the default model of HTTP APIs and many RPC systems.
+
+### Real-World Analogy
+Ordering at a restaurant:
+- You place an order (request)
+- The kitchen prepares it (processing)
+- The waiter brings your meal (response)
+
+### How It Works
+```
+Client                          Server
+  |                               |
+  |--- Request (GET /items) ----->|
+  |                               |  (process)
+  |<--- Response (200 + JSON) ----|
+```
+
+### Use Cases
+- Fetching data (profiles, feeds, search results)
+- Submitting commands (checkout, create order, update settings)
+- Internal service-to-service calls (REST, gRPC, JSON-RPC)
+
+### Pros & Cons
+**Pros:**
+- Simple mental model, easy to debug
+- Strong fit for CRUD-style APIs
+- Works well with caching (CDNs, HTTP caches)
+
+**Cons:**
+- Can be chatty at scale (many small calls)
+- Tight coupling in time (server must be up now)
+- Tail latency compounds across many downstream calls
+
+---
+
+## 6. Publish-Subscribe (Pub/Sub)
+
+### What is it?
+Producers **publish events** to a topic, and subscribers **receive** those events asynchronously. Producers don’t need to know who the subscribers are.
+
+### Real-World Analogy
+Following a newsletter:
+- The author publishes new issues
+- Everyone subscribed receives them
+
+### How It Works
+```
+Producer ---> [ Topic / Event Bus ] ---> Subscriber A
+                              \-----> Subscriber B
+                              \-----> Subscriber C
+```
+
+### Use Cases
+- Domain events (UserSignedUp, PaymentCaptured, OrderShipped)
+- Fan-out notifications (email, push, SMS)
+- Decoupling microservices (reduce direct synchronous dependencies)
+
+### Pros & Cons
+**Pros:**
+- Loose coupling (publisher doesn’t depend on consumers)
+- Easy fan-out to many consumers
+- Improves resilience by removing synchronous chains
+
+**Cons:**
+- Harder tracing/debugging (distributed async flows)
+- Delivery semantics matter (at-most-once / at-least-once / exactly-once*)
+- Ordering is not always guaranteed (depends on system/partitioning)
+
+---
+
+## 7. Message Queue (Work Queue)
+
+### What is it?
+A queue stores **jobs/tasks**. Producers enqueue work, and worker(s) consume and process messages. Typically each message is handled by **one** consumer.
+
+### Real-World Analogy
+A deli ticket system:
+- You take a ticket (enqueue work)
+- The next available clerk serves the next ticket (consumer)
+
+### How It Works
+```
+Producer ---> [ Queue ] ---> Worker 1
+                    \-----> Worker 2
+                    \-----> Worker 3
+```
+
+### Use Cases
+- Background processing (image resizing, video transcoding)
+- Email sending, report generation, web crawling
+- Smoothing spikes (buffering bursts of traffic)
+
+### Pros & Cons
+**Pros:**
+- Absorbs load spikes (buffering)
+- Retries can be managed centrally
+- Scales by adding consumers
+
+**Cons:**
+- Needs idempotent workers (retries can re-run tasks)
+- Poison messages require dead-letter queues (DLQ) or quarantining
+- Adds operational components (broker, monitoring, backlogs)
+
+---
+
+## 8. Webhooks
+
+### What is it?
+A server sends an HTTP callback to another server when an event happens. It’s like “push notifications” but server-to-server over HTTP.
+
+### Real-World Analogy
+A doorbell:
+- Someone presses the button (event)
+- The bell rings at your house (callback)
+
+### How It Works
+```
+Provider (A) --POST /webhook--> Consumer (B)
+           (event payload + signature)
+```
+
+### Best Practices (Important)
+- Verify signatures (HMAC) to prevent spoofing
+- Use retries with exponential backoff
+- Make handlers idempotent (duplicate deliveries happen)
+- Respond quickly (enqueue work; don’t do heavy processing inline)
+
+### Use Cases
+- Payment providers (payment succeeded/failed)
+- Git hosting (push events, PR events)
+- CRM integrations (lead created)
+
+---
+
+## 9. Server-Sent Events (SSE)
+
+### What is it?
+SSE is a **one-way** streaming channel: server -> client over HTTP. The client opens a connection and the server continuously sends events.
+
+### Real-World Analogy
+Listening to a live radio broadcast:
+- You tune in once
+- Updates keep coming without you asking again
+
+### How It Works
+```
+Client ----(HTTP connect)----> Server
+Client <--- event: ... ------- Server
+Client <--- event: ... ------- Server
+```
+
+### When SSE is a great fit
+- Live dashboards, notifications, progress updates
+- “Mostly server push” experiences without full WebSocket complexity
+
+### Pros & Cons
+**Pros:**
+- Simple (built on HTTP), works well with proxies/CDNs in many setups
+- Automatic reconnection is supported by the browser EventSource API
+
+**Cons:**
+- One-way only (client -> server needs normal HTTP requests)
+- Not ideal for high-frequency bidirectional traffic (use WebSockets)
+
+---
+
+## 10. Event Streaming (Log-Based)
+
+### What is it?
+Events are appended to an **ordered log** (stream). Consumers read at their own pace and track their position (offset). Unlike a work queue, multiple consumer groups can independently read the same stream and **replay** events.
+
+### Real-World Analogy
+A newspaper archive:
+- New editions are appended every day
+- Different readers can start today, or go back and reread older issues
+
+### How It Works
+```
+Producers ---> [ Stream / Log (append-only) ] ---> Consumer Group A (offsets)
+                                         \-----> Consumer Group B (offsets)
+```
+
+### Use Cases
+- Analytics pipelines, clickstreams, audit logs
+- Event-driven architectures needing replay (rebuild a read model)
+- Data integration between systems (CDC, outbox pattern pipelines)
+
+### Pros & Cons
+**Pros:**
+- Replayability (powerful for debugging and reprocessing)
+- High throughput, scalable fan-out via consumer groups
+
+**Cons:**
+- Requires schema/versioning discipline (events live “forever”)
+- Exactly-once processing is hard end-to-end (often aim for at-least-once + idempotency)
+
+---
+
 ## Quick Comparison Table
 
 | Concept | Direction | Connection Type | Best For |
 |---------|-----------|-----------------|----------|
 | **Pipe** | One-way flow | Chained processes | Data transformation, ETL |
+| **Request-Response** | Client -> Server -> Client | Short-lived | CRUD APIs, queries/commands |
 | **Polling** | Client -> Server (repeatedly) | Short-lived | Simple updates, compatibility |
+| **SSE** | Server -> Client (one-way) | Persistent | Live updates, dashboards |
 | **WebSocket** | Both ways (bidirectional) | Persistent | Real-time apps, chat, games |
+| **Webhooks** | Server -> Server (event-driven) | Short-lived | Integrations between services |
+| **Pub/Sub** | Producer -> Many consumers | Brokered | Fan-out events, decoupling |
+| **Message Queue** | Producer -> One consumer | Brokered | Background jobs, buffering spikes |
+| **Event Streaming** | Producer -> Many consumers (replayable) | Brokered log | Analytics, audit, event-driven systems |
 | **Throttling** | N/A (control mechanism) | N/A | Protection, fair usage, stability |
 
 ---
@@ -342,11 +555,40 @@ Content-Type: application/json
 - You need maximum compatibility
 - Server doesn't support WebSockets
 
+### Choose Request-Response when:
+- Your interaction is naturally query/command based (CRUD)
+- You want simple debuggability and standard tooling
+- You can tolerate synchronous dependency and latency
+
+### Choose SSE when:
+- You mainly need server -> client updates
+- You want “near real-time” without full bidirectional complexity
+- Your UI needs a stream of updates (dashboards, progress, notifications)
+
 ### Choose WebSocket when:
 - You need real-time updates
 - Both client and server need to send data frequently
 - Low latency is crucial
 - Building chat, games, or collaborative tools
+
+### Choose Webhooks when:
+- You’re integrating two backend systems (provider -> consumer)
+- The consumer can expose an endpoint and handle retries/idempotency
+
+### Choose Pub/Sub when:
+- Multiple components must react to the same event
+- You want to decouple producers from consumers
+- You want fan-out without N direct calls
+
+### Choose a Message Queue when:
+- You need background work processing with competing consumers
+- You want buffering to smooth traffic spikes
+- You want centralized retries/DLQ for tasks
+
+### Choose Event Streaming when:
+- You need replayable history (audit/analytics/reprocessing)
+- Multiple consumer groups need the same events independently
+- You care about high throughput and scalable fan-out over time
 
 ### Use Throttling when:
 - Protecting APIs from abuse
@@ -363,5 +605,5 @@ Content-Type: application/json
 
 ---
 
-*Last updated: December 2024*
+*Last updated: December 2025*
 
