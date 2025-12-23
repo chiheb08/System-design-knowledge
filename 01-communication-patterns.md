@@ -58,6 +58,12 @@ Here's what happens step by step:
 - **Reusability**: Stages can be reused in different pipelines
 - **Testability**: Each stage can be tested independently
 
+### Real-World Examples
+- **Unix/Linux tooling**: `cat | grep | sort | uniq` style data processing in terminals and scripts
+- **Media processing**: `ffmpeg` pipelines that decode -> filter -> encode video/audio
+- **Data engineering**: ETL/ELT pipelines (extract -> transform -> load) in analytics stacks
+- **Stream processing frameworks**: Apache Beam / Spark jobs built as stage-by-stage transformations
+
 ---
 
 ## 2. Polling
@@ -130,6 +136,12 @@ response = requests.get(
 - Wastes resources (many unnecessary requests when there's no new data)
 - Delays in getting updates (depends on polling interval)
 - Not truly real-time
+
+### Real-World Examples
+- **Email clients**: periodic inbox refresh (especially older/legacy setups)
+- **Monitoring dashboards**: CPU/memory charts that refresh every N seconds
+- **Analytics/reporting UIs**: “refresh” loops for batch-updated data (hourly/daily)
+- **Long polling for near-real-time**: classic web chat/notifications before WebSockets became common
 
 ---
 
@@ -207,6 +219,11 @@ socket.onclose = function(event) {
 - **Multiplayer online games**
 - **Collaborative tools** (Google Docs, Figma)
 - **Live notifications**
+
+### Real-World Examples
+- **WhatsApp Web / Slack / Discord**: interactive chat with typing indicators and presence
+- **Google Docs / Figma**: real-time collaboration and cursor/selection updates
+- **Trading apps**: streaming quotes and order book deltas with low latency
 
 ### Pros & Cons
 **Pros:**
@@ -305,6 +322,11 @@ class TokenBucket:
 - **Social media**: Twitter/X limits tweets per hour
 - **Search engines**: Limit crawling rate to not overload websites
 
+### Real-World Examples
+- **Public APIs**: GitHub / Stripe / Google APIs enforce rate limits and return HTTP 429
+- **Auth endpoints**: login + OTP verification often have strict per-user/per-IP throttles
+- **Abuse prevention**: signups, password resets, and “send invite” flows are commonly throttled
+
 ### Throttling vs Rate Limiting
 They're often used interchangeably, but there's a subtle difference:
 
@@ -354,6 +376,11 @@ Client                          Server
 - Submitting commands (checkout, create order, update settings)
 - Internal service-to-service calls (REST, gRPC, JSON-RPC)
 
+### Real-World Examples
+- **Most web/mobile apps**: REST/GraphQL APIs for feeds, profiles, and actions (like, comment, purchase)
+- **Payments**: Stripe-like APIs (create customer, create payment intent, confirm payment)
+- **Microservices**: internal RPC between services (commonly gRPC) for low-latency calls
+
 ### Pros & Cons
 **Pros:**
 - Simple mental model, easy to debug
@@ -389,6 +416,11 @@ Producer ---> [ Topic / Event Bus ] ---> Subscriber A
 - Fan-out notifications (email, push, SMS)
 - Decoupling microservices (reduce direct synchronous dependencies)
 
+### Real-World Examples
+- **Notification fan-out**: one “OrderShipped” event triggers email + push + analytics
+- **Microservices**: publish domain events so many teams/services can react without tight coupling
+- **Infra**: cloud messaging buses/topics (e.g., AWS SNS / Google Pub/Sub / NATS)
+
 ### Pros & Cons
 **Pros:**
 - Loose coupling (publisher doesn’t depend on consumers)
@@ -423,6 +455,11 @@ Producer ---> [ Queue ] ---> Worker 1
 - Background processing (image resizing, video transcoding)
 - Email sending, report generation, web crawling
 - Smoothing spikes (buffering bursts of traffic)
+
+### Real-World Examples
+- **E-commerce**: order placed -> enqueue fulfillment, invoicing, and confirmation tasks
+- **Media platforms**: upload -> enqueue transcoding + thumbnail generation
+- **Email/SMS providers**: sending pipelines are queued to smooth spikes and manage retries
 
 ### Pros & Cons
 **Pros:**
@@ -464,6 +501,12 @@ Provider (A) --POST /webhook--> Consumer (B)
 - Git hosting (push events, PR events)
 - CRM integrations (lead created)
 
+### Real-World Examples
+- **Stripe**: payment and subscription lifecycle webhooks to your backend
+- **GitHub**: push/PR events to CI systems and internal automations
+- **Shopify**: order/fulfillment webhooks to third-party apps
+- **Slack/Discord**: incoming webhooks to post messages into channels
+
 ---
 
 ## 9. Server-Sent Events (SSE)
@@ -486,6 +529,11 @@ Client <--- event: ... ------- Server
 ### When SSE is a great fit
 - Live dashboards, notifications, progress updates
 - “Mostly server push” experiences without full WebSocket complexity
+
+### Real-World Examples
+- **Streaming AI responses**: many AI APIs stream tokens/events to clients using SSE
+- **Live build/log viewers**: CI dashboards that stream job output as it runs
+- **Dashboards**: operational views that stream metrics/alerts to the browser
 
 ### Pros & Cons
 **Pros:**
@@ -518,6 +566,11 @@ Producers ---> [ Stream / Log (append-only) ] ---> Consumer Group A (offsets)
 - Analytics pipelines, clickstreams, audit logs
 - Event-driven architectures needing replay (rebuild a read model)
 - Data integration between systems (CDC, outbox pattern pipelines)
+
+### Real-World Examples
+- **Apache Kafka at scale**: widely used for event streaming (e.g., LinkedIn, Netflix, Uber)
+- **Clickstream analytics**: append user events and replay/reprocess to build new metrics
+- **Audit + compliance**: immutable-ish event history to answer “who did what and when”
 
 ### Pros & Cons
 **Pros:**
